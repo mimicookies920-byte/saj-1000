@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SAJ-1000">
+<link rel="manifest" href="manifest.json">
+<title>SAJ-1000 · Messager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Exo+2:wght@300;400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #0b0f1a;
+  --surface:   #111826;
+  --card:      #161e2e;
+  --border:    #1e2d45;
+  --blue:      #0ea5e9;
+  --blue-dim:  #0ea5e920;
+  --green:     #10b981;
+  --green-dim: #10b98120;
+  --orange:    #f97316;
+  --orange-dim:#f9731620;
+  --red:       #ef4444;
+  --red-dim:   #ef444420;
+  --yellow:    #fbbf24;
+  --text:      #e2e8f0;
+  --muted:     #4a5a72;
+  --mono:      'JetBrains Mono', monospace;
+  --ui:        'Rajdhani', sans-serif;
+  --display:   'Exo 2', sans-serif;
+  --safe-top:  env(safe-area-inset-top, 0px);
+  --safe-bot:  env(safe-area-inset-bottom, 0px);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%; width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--ui);
+  overflow: hidden;
+  touch-action: manipulation;
+}
+
+/* ══ LAYOUT ══ */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-top: var(--safe-top);
+  padding-bottom: var(--safe-bot);
+}
+
+/* ══ TOPBAR ══ */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.brand {
+  font-family: var(--display);
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+.brand .model { color: var(--blue); }
+.brand .sep   { color: var(--muted); margin: 0 5px; font-weight: 300; }
+.brand .sub   { font-size: 9px; color: var(--muted); letter-spacing: 3px; display: block; font-weight: 400; margin-top: 1px; font-family: var(--mono); }
+
+.ble-badge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.ble-badge.connected    { border-color: var(--green)60; background: var(--green-dim); color: var(--green); }
+.ble-badge.connecting   { border-color: var(--yellow)60; background: #fbbf2420; color: var(--yellow); }
+.ble-badge.disconnected { border-color: var(--border); color: var(--muted); }
+.ble-badge:active { transform: scale(0.95); }
+
+.ble-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 0 currentColor;
+}
+.ble-badge.connected .ble-dot    { animation: blePulse 2s infinite; }
+.ble-badge.connecting .ble-dot   { animation: blePulse 0.6s infinite; }
+
+@keyframes blePulse {
+  0%   { box-shadow: 0 0 0 0 currentColor; opacity:1; }
+  70%  { box-shadow: 0 0 0 6px transparent; opacity:0.7; }
+  100% { box-shadow: 0 0 0 0 transparent; opacity:1; }
+}
+
+/* ══ PAGES ══ */
+.pages { flex: 1; overflow: hidden; position: relative; }
+.page  { position: absolute; inset: 0; overflow-y: auto; padding: 14px; display: none; flex-direction: column; gap: 12px; }
+.page.active { display: flex; }
+.page::-webkit-scrollbar { display: none; }
+
+/* ══ SECTION HEADERS ══ */
+.sec-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 3px;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 0 2px;
+  margin-bottom: -4px;
+}
+
+/* ══ CARDS ══ */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ══ STATUS CARD ══ */
+.status-card {
+  padding: 14px 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.stat-item {}
+.stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  margin-bottom: 3px;
+}
+.stat-val {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1;
+}
+.stat-val.ok     { color: var(--green); }
+.stat-val.warn   { color: var(--yellow); }
+.stat-val.err    { color: var(--red); }
+.stat-val.info   { color: var(--blue); }
+.stat-val.off    { color: var(--muted); }
+
+.stat-sub {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  margin-top: 2px;
+}
+
+/* ══ SENSORS ══ */
+.sensors-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--border);
+}
+.sensor-cell {
+  background: var(--card);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.sensor-icon { font-size: 20px; }
+.sensor-val {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--blue);
+}
+.sensor-name {
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 1px;
+  text-align: center;
+}
+
+/* ══ POSITION CARD ══ */
+.pos-card { padding: 14px 16px; }
+.pos-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--muted);
+  letter-spacing: 2px;
+  margin-bottom: 10px;
+}
+.pos-display {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+.pos-axis {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 8px;
+  text-align: center;
+}
+.axis-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.axis-val {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--orange);
+}
+.axis-unit { font-size: 9px; color: var(--muted); margin-top: 2px; }
+
+/* ══ PROGRESS BAR ══ */
+.prog-wrap { padding: 12px 16px; }
+.prog-label { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.prog-name { font-size: 12px; font-weight: 600; }
+.prog-val  { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.prog-bar  { height: 5px; background: var(--surface); border-radius: 3px; overflow: hidden; }
+.prog-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+
+/* ══ BIG COMMAND BUTTONS ══ */
+.cmd-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.cmd-btn {
+  position: relative;
+  border: none;
+  border-radius: 10px;
+  padding: 0;
+  cursor: pointer;
+  overflow: hidden;
+  touch-action: manipulation;
+  transition: transform 0.12s, box-shadow 0.12s;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.cmd-btn:active { transform: scale(0.94); }
+.cmd-btn.disabled { opacity: 0.35; pointer-events: none; }
+
+.cmd-btn-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 22px 12px;
+}
+
+.cmd-icon { font-size: 32px; line-height: 1; }
+.cmd-label {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+.cmd-desc {
+  font-size: 10px;
+  opacity: 0.7;
+  font-family: var(--mono);
+  letter-spacing: 0.5px;
+}
+
+/* Color variants */
+.cmd-btn.start  { background: linear-gradient(145deg, #064e3b, #065f46); border: 1px solid #10b98140; box-shadow: 0 4px 20px #10b98120; }
+.cmd-btn.start  .cmd-label { color: var(--green); }
+.cmd-btn.stop   { background: linear-gradient(145deg, #450a0a, #7f1d1d); border: 1px solid #ef444450; box-shadow: 0 4px 20px #ef444420; }
+.cmd-btn.stop   .cmd-label { color: var(--red); }
+.cmd-btn.pause  { background: linear-gradient(145deg, #431407, #7c2d12); border: 1px solid #f9731640; box-shadow: 0 4px 20px #f9731620; }
+.cmd-btn.pause  .cmd-label { color: var(--orange); }
+.cmd-btn.reset  { background: linear-gradient(145deg, #0c1a2e, #0f2744); border: 1px solid #0ea5e940; box-shadow: 0 4px 20px #0ea5e920; }
+.cmd-btn.reset  .cmd-label { color: var(--blue); }
+
+/* ripple */
+.cmd-btn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: white;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.cmd-btn:active::after { opacity: 0.06; }
+
+/* ══ SPEED CONTROL ══ */
+.speed-card { padding: 14px 16px; }
+.speed-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+.speed-title { font-weight: 600; font-size: 14px; }
+.speed-val {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--blue);
+}
+.speed-unit { font-size: 11px; color: var(--muted); }
+
+.speed-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--border);
+  outline: none;
+  margin-bottom: 8px;
+}
+.speed-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 10px var(--blue)80;
+  cursor: pointer;
+  border: 2px solid var(--bg);
+}
+.speed-ticks { display: flex; justify-content: space-between; }
+.speed-tick { font-family: var(--mono); font-size: 9px; color: var(--muted); }
+
+/* ══ CUSTOM COMMAND ══ */
+.custom-card { padding: 14px 16px; }
+.custom-title { font-size: 13px; font-weight: 600; margin-bottom: 10px; }
+.custom-row { display: flex; gap: 8px; }
+.custom-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  transition: border-color 0.2s;
+}
+.custom-input:focus { outline: none; border-color: var(--blue); }
+
+.send-btn {
+  padding: 10px 18px;
+  background: var(--blue-dim);
+  border: 1px solid var(--blue)50;
+  color: var(--blue);
+  border-radius: 8px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.send-btn:active { transform: scale(0.95); background: var(--blue)30; }
+
+/* ══ LOG LIST ══ */
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.log-entry {
+  background: var(--card);
+  padding: 10px 14px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  animation: slideIn 0.2s ease;
+}
+@keyframes slideIn { from { opacity:0; transform: translateY(-6px); } to { opacity:1; transform: none; } }
+
+.log-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  margin-top: 4px;
+  flex-shrink: 0;
+}
+.log-body { flex: 1; min-width: 0; }
+.log-top { display: flex; justify-content: space-between; gap: 8px; }
+.log-msg { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log-time { font-family: var(--mono); font-size: 10px; color: var(--muted); flex-shrink: 0; }
+.log-sub { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+.log-dot.sent  { background: var(--blue);   box-shadow: 0 0 4px var(--blue); }
+.log-dot.recv  { background: var(--green);  box-shadow: 0 0 4px var(--green); }
+.log-dot.err   { background: var(--red);    box-shadow: 0 0 4px var(--red); }
+.log-dot.warn  { background: var(--yellow); box-shadow: 0 0 4px var(--yellow); }
+.log-dot.sys   { background: var(--muted); }
+
+/* ══ ALERT BANNER ══ */
+.alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid;
+  animation: slideIn 0.3s ease;
+}
+.alert-banner.err  { background: var(--red-dim);    border-color: var(--red)50;    color: var(--red); }
+.alert-banner.warn { background: #fbbf2415;          border-color: var(--yellow)50; color: var(--yellow); }
+.alert-banner.ok   { background: var(--green-dim);  border-color: var(--green)50;  color: var(--green); }
+
+.alert-icon { font-size: 20px; flex-shrink: 0; }
+.alert-text { flex: 1; }
+.alert-title { font-weight: 700; font-size: 13px; }
+.alert-sub   { font-family: var(--mono); font-size: 10px; opacity: 0.8; margin-top: 2px; }
+.alert-close { font-size: 18px; cursor: pointer; opacity: 0.6; padding: 4px; }
+
+/* ══ NAVBAR ══ */
+.navbar {
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.nav-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 10px 0 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+  -webkit-user-select: none; user-select: none;
+}
+.nav-item:active { background: var(--card); }
+.nav-icon { font-size: 22px; transition: transform 0.2s; }
+.nav-label { font-size: 9px; letter-spacing: 1px; color: var(--muted); font-family: var(--mono); transition: color 0.2s; }
+.nav-item.active .nav-label { color: var(--blue); }
+.nav-item.active .nav-icon  { transform: translateY(-2px); }
+.nav-item.active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 20%; right: 20%;
+  height: 2px;
+  background: var(--blue);
+  border-radius: 0 0 3px 3px;
+}
+
+/* ══ MODAL OVERLAY ══ */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: #00000090;
+  backdrop-filter: blur(4px);
+  display: none;
+  align-items: flex-end;
+  z-index: 100;
+}
+.modal-overlay.open { display: flex; }
+.modal-sheet {
+  width: 100%;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  padding: 20px 20px calc(20px + var(--safe-bot));
+  animation: slideUp 0.3s ease;
+}
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: none; } }
+
+.modal-handle {
+  width: 36px; height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+.modal-title { font-family: var(--display); font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+
+.ble-device-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.ble-device-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.ble-device-item:active { background: var(--blue-dim); border-color: var(--blue)40; }
+.ble-device-icon { font-size: 24px; }
+.ble-device-name { font-weight: 600; font-size: 14px; }
+.ble-device-addr { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.ble-device-rssi { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+.scan-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--blue-dim);
+  border: 1px solid var(--blue)50;
+  color: var(--blue);
+  border-radius: 10px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.scan-btn:active { transform: scale(0.97); }
+.scan-btn.scanning { background: var(--orange-dim); border-color: var(--orange)50; color: var(--orange); }
+
+/* ══ FEEDBACK TOAST ══ */
+.toast {
+  position: fixed;
+  bottom: calc(70px + var(--safe-bot));
+  left: 50%; transform: translateX(-50%);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 8px 18px;
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+/* ══ SCANNING ANIMATION ══ */
+.scan-ring {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 0;
+}
+.ring {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  border: 2px solid var(--blue)40;
+  position: absolute;
+  animation: ringPulse 2s ease infinite;
+}
+.ring:nth-child(2) { animation-delay: 0.5s; }
+.ring:nth-child(3) { animation-delay: 1s; }
+.ring-center {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 16px var(--blue);
+  position: relative;
+  z-index: 1;
+}
+@keyframes ringPulse {
+  0%   { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* ══ CHARGE INDICATOR ══ */
+.charge-bar {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+.charge-seg {
+  width: 8px; height: 14px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 0.4s;
+}
+.charge-seg.active { background: var(--green); box-shadow: 0 0 4px var(--green)60; }
+.charge-seg.active.warn { background: var(--yellow); box-shadow: 0 0 4px var(--yellow)60; }
+.charge-seg.active.low  { background: var(--red); box-shadow: 0 0 4px var(--red)60; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ══ TOPBAR ══ -->
+  <div class="topbar">
+    <div class="brand">
+      <span class="model">SAJ-1000</span><span class="sep">·</span>MESSAGER
+      <small class="sub">CONVOYEUR BLE</small>
+    </div>
+    <div class="ble-badge disconnected" id="bleBadge" onclick="openBleModal()">
+      <div class="ble-dot"></div>
+      <span id="bleLabel">CONNECTER</span>
+    </div>
+  </div>
+
+  <!-- ══ PAGES ══ -->
+  <div class="pages">
+
+    <!-- PAGE : COMMANDES -->
+    <div class="page active" id="page-cmd">
+      <!-- Status row -->
+      <div id="alertZone"></div>
+
+      <div class="sec-title">ÉTAT DU ROBOT</div>
+      <div class="card">
+        <div class="status-card">
+          <div class="stat-item">
+            <div class="stat-label">ÉTAT</div>
+            <div class="stat-val ok" id="stateVal">ARRÊTÉ</div>
+            <div class="stat-sub" id="stateSub">En attente</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">MODE</div>
+            <div class="stat-val info" id="modeVal">MANUEL</div>
+            <div class="stat-sub" id="modeSub">Contrôle direct</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">VITESSE</div>
+            <div class="stat-val info" id="speedVal">0</div>
+            <div class="stat-sub">tr/min</div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-label">CHARGE</div>
+            <div class="charge-bar" id="chargeBar">
+              <div class="charge-seg"></div><div class="charge-seg"></div>
+              <div class="charge-seg"></div><div class="charge-seg"></div>
+              <div class="charge-seg"></div><div class="charge-seg"></div>
+              <div class="charge-seg"></div><div class="charge-seg"></div>
+            </div>
+            <div class="stat-sub" id="chargeLabel">0%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Speed control -->
+      <div class="sec-title">VITESSE CIBLE</div>
+      <div class="card">
+        <div class="speed-card">
+          <div class="speed-header">
+            <span class="speed-title">Consigne vitesse</span>
+            <span><span class="speed-val" id="sliderVal">600</span> <span class="speed-unit">tr/min</span></span>
+          </div>
+          <input type="range" class="speed-slider" id="speedSlider" min="0" max="1500" value="600" step="50"
+            oninput="onSpeedSlider(this.value)" onchange="sendSpeedCmd(this.value)">
+          <div class="speed-ticks">
+            <span class="speed-tick">0</span>
+            <span class="speed-tick">375</span>
+            <span class="speed-tick">750</span>
+            <span class="speed-tick">1125</span>
+            <span class="speed-tick">1500</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Command buttons -->
+      <div class="sec-title">COMMANDES</div>
+      <div class="cmd-grid">
+        <button class="cmd-btn start disabled" id="btnStart" onclick="sendCmd('START')">
+          <div class="cmd-btn-inner">
+            <div class="cmd-icon">▶</div>
+            <div class="cmd-label">DÉMARRER</div>
+            <div class="cmd-desc">START sequence</div>
+          </div>
+        </button>
+        <button class="cmd-btn stop disabled" id="btnStop" onclick="sendCmd('STOP')">
+          <div class="cmd-btn-inner">
+            <div class="cmd-icon">⏹</div>
+            <div class="cmd-label">ARRÊTER</div>
+            <div class="cmd-desc">STOP immédiat</div>
+          </div>
+        </button>
+        <button class="cmd-btn pause disabled" id="btnPause" onclick="sendCmd('PAUSE')">
+          <div class="cmd-btn-inner">
+            <div class="cmd-icon">⏸</div>
+            <div class="cmd-label">PAUSE</div>
+            <div class="cmd-desc">Mise en pause</div>
+          </div>
+        </button>
+        <button class="cmd-btn reset disabled" id="btnReset" onclick="sendCmd('RESET')">
+          <div class="cmd-btn-inner">
+            <div class="cmd-icon">↺</div>
+            <div class="cmd-label">RESET</div>
+            <div class="cmd-desc">Réinitialiser</div>
+          </div>
+        </button>
+      </div>
+
+      <!-- Custom command -->
+      <div class="sec-title">COMMANDE MANUELLE</div>
+      <div class="card">
+        <div class="custom-card">
+          <div class="custom-row">
+            <input class="custom-input" id="customCmd" type="text" placeholder="ex: SET_SPEED:800" autocomplete="off" spellcheck="false">
+            <button class="send-btn" onclick="sendCustom()">ENVOYER</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE : CAPTEURS -->
+    <div class="page" id="page-sensors">
+
+      <div class="sec-title">POSITION</div>
+      <div class="card">
+        <div class="pos-card">
+          <div class="pos-title">COORDONNÉES ROBOT</div>
+          <div class="pos-display">
+            <div class="pos-axis">
+              <div class="axis-label">X</div>
+              <div class="axis-val" id="posX">0.00</div>
+              <div class="axis-unit">mm</div>
+            </div>
+            <div class="pos-axis">
+              <div class="axis-label">Y</div>
+              <div class="axis-val" id="posY">0.00</div>
+              <div class="axis-unit">mm</div>
+            </div>
+            <div class="pos-axis">
+              <div class="axis-label">Z</div>
+              <div class="axis-val" id="posZ">0.00</div>
+              <div class="axis-unit">mm</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-title">CAPTEURS</div>
+      <div class="card">
+        <div class="sensors-grid">
+          <div class="sensor-cell">
+            <div class="sensor-icon">🌡️</div>
+            <div class="sensor-val" id="sTemp">--</div>
+            <div class="sensor-name">TEMP °C</div>
+          </div>
+          <div class="sensor-cell">
+            <div class="sensor-icon">⚡</div>
+            <div class="sensor-val" id="sCurrent">--</div>
+            <div class="sensor-name">COURANT A</div>
+          </div>
+          <div class="sensor-cell">
+            <div class="sensor-icon">📳</div>
+            <div class="sensor-val" id="sVibration">--</div>
+            <div class="sensor-name">VIBRATION</div>
+          </div>
+          <div class="sensor-cell">
+            <div class="sensor-icon">💡</div>
+            <div class="sensor-val" id="sCaptFin">--</div>
+            <div class="sensor-name">FIN COURSE</div>
+          </div>
+          <div class="sensor-cell">
+            <div class="sensor-icon">🔄</div>
+            <div class="sensor-val" id="sEncoder">--</div>
+            <div class="sensor-name">ENCODEUR</div>
+          </div>
+          <div class="sensor-cell">
+            <div class="sensor-icon">🛑</div>
+            <div class="sensor-val" id="sUrgence">--</div>
+            <div class="sensor-name">URGENCE</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sec-title">CHARGE MOTEUR</div>
+      <div class="card">
+        <div class="prog-wrap">
+          <div class="prog-label">
+            <span class="prog-name">Moteur principal</span>
+            <span class="prog-val" id="progMotLabel">0%</span>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" id="progMot" style="width:0%;background:var(--green)"></div></div>
+        </div>
+        <div class="prog-wrap" style="border-top:1px solid var(--border)">
+          <div class="prog-label">
+            <span class="prog-name">Température CPU</span>
+            <span class="prog-val" id="progCpuLabel">0%</span>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" id="progCpu" style="width:0%;background:var(--blue)"></div></div>
+        </div>
+        <div class="prog-wrap" style="border-top:1px solid var(--border)">
+          <div class="prog-label">
+            <span class="prog-name">Alimentation</span>
+            <span class="prog-val" id="progPsuLabel">0%</span>
+          </div>
+          <div class="prog-bar"><div class="prog-fill" id="progPsu" style="width:0%;background:var(--orange)"></div></div>
+        </div>
+      </div>
+
+      <div style="height: 10px;"></div>
+    </div>
+
+    <!-- PAGE : JOURNAL -->
+    <div class="page" id="page-log">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="sec-title" style="margin:0">JOURNAL DE COMMUNICATION</div>
+        <button onclick="clearLog()" style="background:none;border:none;color:var(--muted);font-size:11px;font-family:var(--mono);cursor:pointer;letter-spacing:1px;">EFFACER</button>
+      </div>
+      <div class="log-list" id="logList">
+        <div class="log-entry">
+          <div class="log-dot sys"></div>
+          <div class="log-body">
+            <div class="log-top">
+              <div class="log-msg">Application démarrée</div>
+              <div class="log-time" id="initTime">--:--:--</div>
+            </div>
+            <div class="log-sub">SAJ-1000 Messager · PWA BLE · Android</div>
+          </div>
+        </div>
+      </div>
+      <div style="height: 10px;"></div>
+    </div>
+
+  </div>
+
+  <!-- ══ NAVBAR ══ -->
+  <div class="navbar">
+    <div class="nav-item active" id="nav-cmd" onclick="goPage('cmd')">
+      <div class="nav-icon">🎮</div>
+      <div class="nav-label">COMMANDES</div>
+    </div>
+    <div class="nav-item" id="nav-sensors" onclick="goPage('sensors')">
+      <div class="nav-icon">📡</div>
+      <div class="nav-label">CAPTEURS</div>
+    </div>
+    <div class="nav-item" id="nav-log" onclick="goPage('log')">
+      <div class="nav-icon">📋</div>
+      <div class="nav-label">JOURNAL</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ BLE MODAL ══ -->
+<div class="modal-overlay" id="bleModal" onclick="closeBleModal(event)">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Connexion Bluetooth</div>
+
+    <div id="scanArea">
+      <div class="scan-ring" id="scanRingWrap" style="display:none;position:relative;height:80px;">
+        <div class="ring"></div><div class="ring"></div><div class="ring"></div>
+        <div class="ring-center"></div>
+      </div>
+      <div class="ble-device-list" id="deviceList">
+        <div style="text-align:center;padding:20px;color:var(--muted);font-family:var(--mono);font-size:12px;">
+          Appuyez sur SCANNER pour rechercher les appareils BLE
+        </div>
+      </div>
+    </div>
+
+    <button class="scan-btn" id="scanBtn" onclick="startScan()">
+      <span>🔍</span><span id="scanBtnLabel">SCANNER</span>
+    </button>
+
+    <div id="connectedInfo" style="display:none;margin-top:12px;text-align:center;">
+      <button onclick="disconnectBle()" style="background:var(--red-dim);border:1px solid var(--red)50;color:var(--red);padding:12px 24px;border-radius:8px;font-family:var(--display);font-weight:700;font-size:14px;cursor:pointer;letter-spacing:1px;">
+        DÉCONNECTER
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST ══ -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+const state = {
+  connected: false,
+  deviceName: null,
+  bleDevice: null,
+  bleServer: null,
+  txChar: null,
+  rxChar: null,
+  robotState: 'ARRÊTÉ',
+  motorLoad: 0,
+  speed: 0,
+};
+
+// UUIDs BLE — à adapter à votre firmware SAJ-1000
+const BLE_SERVICE_UUID     = '0000ffe0-0000-1000-8000-00805f9b34fb';
+const BLE_TX_CHAR_UUID     = '0000ffe1-0000-1000-8000-00805f9b34fb'; // téléphone → robot
+const BLE_RX_CHAR_UUID     = '0000ffe2-0000-1000-8000-00805f9b34fb'; // robot → téléphone
+
+const encoder = new TextEncoder();
+const decoder = new TextDecoder();
+
+// ══════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════
+function goPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-'  + name).classList.add('active');
+}
+
+// ══════════════════════════════════════════════
+//  BLE MODAL
+// ══════════════════════════════════════════════
+function openBleModal() {
+  document.getElementById('bleModal').classList.add('open');
+  if (state.connected) {
+    document.getElementById('connectedInfo').style.display = 'block';
+    document.getElementById('scanBtn').style.display = 'none';
+  } else {
+    document.getElementById('connectedInfo').style.display = 'none';
+    document.getElementById('scanBtn').style.display = 'flex';
+  }
+}
+function closeBleModal(e) {
+  if (e.target === document.getElementById('bleModal'))
+    document.getElementById('bleModal').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════
+//  BLE SCAN & CONNECT
+// ══════════════════════════════════════════════
+let scanning = false;
+
+async function startScan() {
+  if (!navigator.bluetooth) {
+    showToast('⚠ Web Bluetooth non supporté — utilisez Chrome Android');
+    addLog('err', 'Web Bluetooth API non disponible', 'Vérifiez Chrome Android');
+    return;
+  }
+
+  if (scanning) return;
+  scanning = true;
+
+  const btn = document.getElementById('scanBtn');
+  const label = document.getElementById('scanBtnLabel');
+  btn.classList.add('scanning');
+  label.textContent = 'RECHERCHE…';
+  document.getElementById('scanRingWrap').style.display = 'flex';
+  document.getElementById('deviceList').innerHTML = '<div style="text-align:center;padding:16px;color:var(--muted);font-family:var(--mono);font-size:12px;">Recherche en cours…</div>';
+
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      // Cherche tous les appareils BLE (pour dev); restreindre en prod:
+      acceptAllDevices: true,
+      optionalServices: [BLE_SERVICE_UUID]
+      // Pour filtrer uniquement SAJ-1000 :
+      // filters: [{ namePrefix: 'SAJ' }],
+    });
+
+    addLog('sys', `Appareil sélectionné : ${device.name || 'Sans nom'}`, device.id);
+    await connectDevice(device);
+
+  } catch (err) {
+    if (err.name !== 'NotFoundError') {
+      addLog('err', 'Erreur scan BLE', err.message);
+      showToast('❌ ' + err.message);
+    }
+  } finally {
+    scanning = false;
+    btn.classList.remove('scanning');
+    label.textContent = 'SCANNER';
+    document.getElementById('scanRingWrap').style.display = 'none';
+  }
+}
+
+async function connectDevice(device) {
+  try {
+    showToast('🔗 Connexion à ' + (device.name || 'appareil…'));
+    addLog('sys', 'Connexion GATT…', device.name || device.id);
+
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService(BLE_SERVICE_UUID);
+
+    let txChar = null, rxChar = null;
+
+    try {
+      txChar = await service.getCharacteristic(BLE_TX_CHAR_UUID);
+    } catch(e) {
+      addLog('warn', 'UUID TX non trouvé — mode démo actif', BLE_TX_CHAR_UUID);
+    }
+
+    try {
+      rxChar = await service.getCharacteristic(BLE_RX_CHAR_UUID);
+      await rxChar.startNotifications();
+      rxChar.addEventListener('characteristicvaluechanged', onBleData);
+      addLog('ok', 'Notifications RX activées', BLE_RX_CHAR_UUID);
+    } catch(e) {
+      addLog('warn', 'UUID RX non trouvé', BLE_RX_CHAR_UUID);
+    }
+
+    state.bleDevice = device;
+    state.bleServer = server;
+    state.txChar = txChar;
+    state.rxChar = rxChar;
+    state.deviceName = device.name || 'SAJ-1000';
+
+    device.addEventListener('gattserverdisconnected', onDisconnected);
+    onConnected();
+
+  } catch(err) {
+    addLog('err', 'Échec connexion GATT', err.message);
+    showToast('❌ ' + err.message);
+    // Fallback mode démo
+    enterDemoMode(device);
+  }
+}
+
+function enterDemoMode(device) {
+  state.connected = true;
+  state.deviceName = (device?.name || 'SAJ-DEMO') + ' [DÉMO]';
+  onConnected();
+  addLog('warn', 'Mode DÉMO activé', 'Les données sont simulées');
+  showToast('🟡 Mode démonstration');
+  startDemoSimulation();
+}
+
+function onConnected() {
+  state.connected = true;
+  setBleUI(true);
+  enableButtons(true);
+  document.getElementById('connectedInfo').style.display = 'block';
+  document.getElementById('scanBtn').style.display = 'none';
+  addLog('ok', 'Connecté à ' + state.deviceName, 'BLE GATT opérationnel');
+  showToast('✅ Connecté : ' + state.deviceName);
+
+  // demander le statut initial
+  setTimeout(() => sendRaw('STATUS?'), 800);
+}
+
+function onDisconnected() {
+  state.connected = false;
+  state.bleDevice = null;
+  state.bleServer = null;
+  state.txChar = null;
+  state.rxChar = null;
+  setBleUI(false);
+  enableButtons(false);
+  addLog('warn', 'Appareil déconnecté', state.deviceName);
+  showToast('🔌 Déconnecté');
+  stopDemoSimulation();
+}
+
+async function disconnectBle() {
+  if (state.bleDevice?.gatt?.connected) {
+    state.bleDevice.gatt.disconnect();
+  } else {
+    onDisconnected();
+  }
+  document.getElementById('bleModal').classList.remove('open');
+}
+
+function setBleUI(connected) {
+  const badge = document.getElementById('bleBadge');
+  const label = document.getElementById('bleLabel');
+  badge.className = 'ble-badge ' + (connected ? 'connected' : 'disconnected');
+  label.textContent = connected ? (state.deviceName || 'CONNECTÉ') : 'CONNECTER';
+}
+
+function enableButtons(on) {
+  ['btnStart','btnStop','btnPause','btnReset'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.toggle('disabled', !on);
+  });
+}
+
+// ══════════════════════════════════════════════
+//  BLE SEND / RECEIVE
+// ══════════════════════════════════════════════
+async function sendRaw(text) {
+  if (!state.txChar) {
+    // démo : juste log
+    addLog('sent', text, '→ SAJ-1000 [démo]');
+    return;
+  }
+  try {
+    const data = encoder.encode(text + '\n');
+    await state.txChar.writeValueWithoutResponse(data);
+    addLog('sent', text, '→ ' + state.deviceName);
+  } catch(err) {
+    addLog('err', 'Erreur envoi BLE', err.message);
+    showToast('❌ Erreur envoi');
+  }
+}
+
+function onBleData(event) {
+  const val = decoder.decode(event.target.value).trim();
+  addLog('recv', val, '← ' + (state.deviceName || 'SAJ-1000'));
+  parseRobotMessage(val);
+}
+
+function parseRobotMessage(raw) {
+  // Format attendu : "KEY:VALUE" ou "KEY:VALUE,KEY:VALUE,…"
+  // Exemples : "STATE:RUNNING", "SPEED:1200,LOAD:67,TEMP:42.3"
+  // "POS:120.5,45.0,0.0", "SENSOR:TEMP:42,CURR:3.2,VIB:LOW"
+
+  const pairs = raw.split(',');
+  pairs.forEach(pair => {
+    const [k, ...vArr] = pair.split(':');
+    const v = vArr.join(':').trim();
+    switch(k?.trim().toUpperCase()) {
+      case 'STATE':   updateRobotState(v); break;
+      case 'SPEED':   updateSpeed(parseFloat(v)); break;
+      case 'LOAD':    updateLoad(parseFloat(v)); break;
+      case 'TEMP':    document.getElementById('sTemp').textContent = v; break;
+      case 'CURR':    document.getElementById('sCurrent').textContent = v; break;
+      case 'VIB':     document.getElementById('sVibration').textContent = v; break;
+      case 'ENCODER': document.getElementById('sEncoder').textContent = v; break;
+      case 'URGENCE': document.getElementById('sUrgence').textContent = v === '1' ? '🔴 OUI' : '✅ NON'; break;
+      case 'FIN':     document.getElementById('sCaptFin').textContent = v === '1' ? '✅ OUI' : '◯ NON'; break;
+      case 'X':       document.getElementById('posX').textContent = parseFloat(v).toFixed(2); break;
+      case 'Y':       document.getElementById('posY').textContent = parseFloat(v).toFixed(2); break;
+      case 'Z':       document.getElementById('posZ').textContent = parseFloat(v).toFixed(2); break;
+      case 'ALERT':   showAlertBanner(v, 'err'); break;
+      case 'WARN':    showAlertBanner(v, 'warn'); break;
+      case 'MODE':    updateMode(v); break;
+    }
+  });
+}
+
+// ══════════════════════════════════════════════
+//  COMMANDS
+// ══════════════════════════════════════════════
+async function sendCmd(cmd) {
+  if (!state.connected) { showToast('❌ Non connecté'); return; }
+  await sendRaw('CMD:' + cmd);
+  vibrate([30]);
+  showToast('📤 ' + cmd);
+  // optimistic UI
+  if (cmd === 'START')  updateRobotState('RUNNING');
+  if (cmd === 'STOP')   updateRobotState('STOPPED');
+  if (cmd === 'PAUSE')  updateRobotState('PAUSED');
+  if (cmd === 'RESET')  { updateRobotState('STOPPED'); updateSpeed(0); updateLoad(0); }
+}
+
+function onSpeedSlider(v) {
+  document.getElementById('sliderVal').textContent = v;
+}
+async function sendSpeedCmd(v) {
+  if (!state.connected) return;
+  await sendRaw('SET_SPEED:' + v);
+  showToast('⚡ Vitesse → ' + v + ' tr/min');
+}
+
+async function sendCustom() {
+  const input = document.getElementById('customCmd');
+  const cmd = input.value.trim();
+  if (!cmd) return;
+  await sendRaw(cmd);
+  input.value = '';
+}
+
+// ══════════════════════════════════════════════
+//  UI UPDATES
+// ══════════════════════════════════════════════
+function updateRobotState(s) {
+  state.robotState = s;
+  const el = document.getElementById('stateVal');
+  const sub = document.getElementById('stateSub');
+  const map = {
+    RUNNING: ['ok','EN MARCHE','Séquence active'],
+    STOPPED: ['warn','ARRÊTÉ','En attente'],
+    PAUSED:  ['warn','EN PAUSE','Pause active'],
+    ERROR:   ['err','ERREUR','Vérification requise'],
+    IDLE:    ['off','REPOS','Prêt'],
+    INIT:    ['info','INIT','Initialisation'],
+  };
+  const [cls, label, hint] = map[s.toUpperCase()] || ['off', s, ''];
+  el.className = 'stat-val ' + cls;
+  el.textContent = label;
+  sub.textContent = hint;
+}
+
+function updateSpeed(v) {
+  state.speed = v;
+  document.getElementById('speedVal').textContent = Math.round(v);
+}
+
+function updateLoad(v) {
+  state.motorLoad = v;
+  document.getElementById('chargeLabel').textContent = Math.round(v) + '%';
+  document.getElementById('chargeBar').querySelectorAll('.charge-seg').forEach((seg, i) => {
+    const threshold = (i + 1) * 12.5;
+    seg.className = 'charge-seg' + (v >= threshold ? (v >= 85 ? ' active low' : v >= 65 ? ' active warn' : ' active') : '');
+  });
+  setProgress('progMot', v, v>80?'var(--red)':v>60?'var(--yellow)':'var(--green)');
+}
+
+function updateMode(m) {
+  const el = document.getElementById('modeVal');
+  const sub = document.getElementById('modeSub');
+  el.textContent = m;
+  sub.textContent = m === 'AUTO' ? 'Automatique' : 'Contrôle direct';
+}
+
+function setProgress(id, pct, color) {
+  const fill = document.getElementById(id);
+  fill.style.width = Math.min(100, pct) + '%';
+  fill.style.background = color;
+  const label = document.getElementById(id + 'Label');
+  if (label) label.textContent = Math.round(pct) + '%';
+}
+
+// ══════════════════════════════════════════════
+//  ALERTS
+// ══════════════════════════════════════════════
+function showAlertBanner(msg, type) {
+  const zone = document.getElementById('alertZone');
+  const icon = type === 'err' ? '🚨' : '⚠️';
+  const title = type === 'err' ? 'ALERTE ROBOT' : 'AVERTISSEMENT';
+  zone.innerHTML = `
+    <div class="alert-banner ${type}">
+      <div class="alert-icon">${icon}</div>
+      <div class="alert-text">
+        <div class="alert-title">${title}</div>
+        <div class="alert-sub">${msg}</div>
+      </div>
+      <div class="alert-close" onclick="this.parentElement.remove()">✕</div>
+    </div>`;
+  vibrate([100,50,100,50,200]);
+}
+
+// ══════════════════════════════════════════════
+//  LOG
+// ══════════════════════════════════════════════
+let logCount = 0;
+function addLog(type, msg, sub) {
+  const list = document.getElementById('logList');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const dotMap = { sent:'sent', recv:'recv', err:'err', warn:'warn', ok:'recv', sys:'sys' };
+  entry.innerHTML = `
+    <div class="log-dot ${dotMap[type]||'sys'}"></div>
+    <div class="log-body">
+      <div class="log-top">
+        <div class="log-msg">${msg}</div>
+        <div class="log-time">${new Date().toLocaleTimeString('fr-FR',{hour12:false})}</div>
+      </div>
+      ${sub ? `<div class="log-sub">${sub}</div>` : ''}
+    </div>`;
+  list.insertBefore(entry, list.children[1] || null);
+  logCount++;
+  if (list.children.length > 60) list.removeChild(list.lastChild);
+}
+function clearLog() {
+  const list = document.getElementById('logList');
+  while (list.children.length > 1) list.removeChild(list.lastChild);
+  showToast('Journal effacé');
+}
+
+// ══════════════════════════════════════════════
+//  TOAST & HAPTICS
+// ══════════════════════════════════════════════
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function vibrate(pattern) {
+  try { navigator.vibrate?.(pattern); } catch(e){}
+}
+
+// ══════════════════════════════════════════════
+//  DEMO SIMULATION
+// ══════════════════════════════════════════════
+let demoInterval;
+function startDemoSimulation() {
+  let tick = 0;
+  updateRobotState('RUNNING');
+  updateSpeed(850);
+  updateLoad(52);
+  demoInterval = setInterval(() => {
+    tick++;
+    const sp = 800 + Math.sin(tick*0.3)*200;
+    const ld = 45 + Math.sin(tick*0.2)*25 + Math.random()*5;
+    updateSpeed(sp);
+    updateLoad(ld);
+
+    document.getElementById('sTemp').textContent     = (38 + Math.sin(tick*0.1)*6).toFixed(1);
+    document.getElementById('sCurrent').textContent  = (3.2 + Math.random()*0.8).toFixed(2);
+    document.getElementById('sVibration').textContent= Math.random()>0.85 ? 'HIGH' : 'LOW';
+    document.getElementById('sEncoder').textContent  = (tick*47 % 4096).toString();
+    document.getElementById('sUrgence').textContent  = '✅ NON';
+    document.getElementById('sCaptFin').textContent  = tick%20===0 ? '✅ OUI' : '◯ NON';
+
+    document.getElementById('posX').textContent = (120 + Math.sin(tick*0.15)*30).toFixed(2);
+    document.getElementById('posY').textContent = (45  + Math.cos(tick*0.12)*20).toFixed(2);
+    document.getElementById('posZ').textContent = (0   + Math.abs(Math.sin(tick*0.05)*5)).toFixed(2);
+
+    setProgress('progMot', ld, ld>80?'var(--red)':ld>60?'var(--yellow)':'var(--green)');
+    setProgress('progCpu', 35 + Math.random()*20, 'var(--blue)');
+    setProgress('progPsu', 70 + Math.random()*15, 'var(--orange)');
+
+    if (tick % 15 === 0) addLog('recv', 'SPEED:' + Math.round(sp) + ',LOAD:' + Math.round(ld), '← DEMO');
+    if (tick === 30) showAlertBanner('Température moteur élevée : 44.2°C', 'warn');
+  }, 1500);
+}
+function stopDemoSimulation() {
+  clearInterval(demoInterval);
+  updateRobotState('STOPPED');
+  updateSpeed(0);
+  updateLoad(0);
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+document.getElementById('initTime').textContent = new Date().toLocaleTimeString('fr-FR',{hour12:false});
+
+// Register service worker for PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
